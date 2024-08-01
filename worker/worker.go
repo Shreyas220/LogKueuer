@@ -1,14 +1,24 @@
 package worker
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 )
 
 // Process data then ->  save statistics on node then send the location and
+var Aggregated_result map[string][]string
+
+var Aggreate chan map[string][]string
 
 func RunWorker() {
-	file, err := os.Open("location.json")
+	Aggregated_result = make(map[string][]string)
+	Aggreate = make(chan map[string][]string, 1000)
+
+	file, err := os.Open("k8s_audit_logs.json")
 	if err != nil {
 		panic(err)
 	}
@@ -18,22 +28,33 @@ func RunWorker() {
 	buf := make([]byte, chunkSize)
 	leftover := make([]byte, 0, chunkSize)
 
-	go func() {
-		for {
-			bytesRead, err := file.Read(buf)
-			if bytesRead > 0 {
-				chunk := make([]byte, bytesRead)
-				copy(chunk, buf[:bytesRead])
-				validChunk, newLeftover := processChunk(chunk, leftover)
-				leftover = newLeftover
-				fmt.Println("go over valid chunk", validChunk)
-			}
-			if err != nil {
-				break
-			}
+	// go func() {
+	for {
+		bytesRead, err := file.Read(buf)
+		if bytesRead > 0 {
+			chunk := make([]byte, bytesRead)
+			copy(chunk, buf[:bytesRead])
+			validChunk, newLeftover := processChunk(chunk, leftover)
+			leftover = newLeftover
+			processChunkData(validChunk)
+			// fmt.Println("go over valid chunk", validChunk)
 		}
-	}()
-	// ...
+		if err != nil {
+			break
+		}
+	}
+	// }()
+	for {
+		select {
+		// case <-Context().Done():
+		// 	return nil
+		case resp := <-Aggreate:
+			fmt.Println("Aggregate", resp)
+		default:
+			time.Sleep(time.Millisecond * 10)
+
+		}
+	}
 }
 
 func processChunk(chunk, leftover []byte) (validChunk, newLeftover []byte) {
@@ -60,4 +81,29 @@ func processChunk(chunk, leftover []byte) (validChunk, newLeftover []byte) {
 }
 
 func processChunkData(chunk []byte) {
+	scanner := bufio.NewScanner(strings.NewReader(string(chunk)))
+	i := 0
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		var data map[string]interface{}
+		err := json.Unmarshal(line, &data)
+		if err != nil {
+			fmt.Println("Error unmarshaling JSON:", err)
+			continue
+		}
+		if user, ok := data["user"].(map[string]interface{}); ok {
+			if username, ok := user["username"].(string); ok {
+				fmt.Printf("Username: %s\n", username)
+			} else {
+				fmt.Println("Username field is missing or not a string")
+			}
+		} else {
+			fmt.Println("User field is missing or not a map")
+		}
+
+		i++
+		if i == 5 {
+			break
+		}
+	}
 }
