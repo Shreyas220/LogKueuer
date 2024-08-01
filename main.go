@@ -1,6 +1,6 @@
 package main
 
-import "LogKueueEngine/worker"
+import "logkueuer/worker"
 
 // get the data into local storage
 func main() {

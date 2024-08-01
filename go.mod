@@ -1,4 +1,4 @@
-module LogKueueEngine
+module logkueuer
 
 go 1.22.0
 
