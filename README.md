@@ -1,6 +1,6 @@
 # LogKueuer
 
-This is an experiment to develop a Kubernetes-native computational engine.
+This is an experiment to develop a Kubernetes-native computational engine using [Kueue](https://github.com/kubernetes-sigs/kueue) as scheduler.
 
 The goal is 
 - **Data Partitioning:** Segment log data into manageable chunks 
